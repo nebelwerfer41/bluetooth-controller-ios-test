@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>iPhone HID Tester</title>
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 20px;
+      background: #111;
+      color: #eee;
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+
+    #status {
+      padding: 12px;
+      background: #222;
+      margin-bottom: 15px;
+      white-space: pre-wrap;
+    }
+
+    #log {
+      background: #000;
+      padding: 12px;
+      height: 55vh;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      border: 1px solid #444;
+    }
+
+    .gamepad {
+      color: #7ee787;
+    }
+
+    .pointer {
+      color: #79c0ff;
+    }
+
+    .mouse {
+      color: #d2a8ff;
+    }
+
+    .keyboard {
+      color: #ffa657;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Bluetooth HID Tester</h2>
+
+<button id="start">ATTIVA TEST</button>
+
+<div id="status">Test non ancora attivato.</div>
+<div id="log"></div>
+
+<script>
+const logEl = document.getElementById("log");
+const statusEl = document.getElementById("status");
+
+let running = false;
+let previousGamepad = "";
+
+function log(text, type = "") {
+  const line = document.createElement("div");
+  line.className = type;
+  line.textContent =
+    new Date().toLocaleTimeString() + "  " + text;
+
+  logEl.prepend(line);
+
+  // Evitiamo un log infinito
+  while (logEl.children.length > 150) {
+    logEl.removeChild(logEl.lastChild);
+  }
+}
+
+document.getElementById("start").addEventListener("click", () => {
+  running = true;
+  statusEl.textContent =
+    "TEST ATTIVO\nMuovi joystick e premi tutti i pulsanti.";
+  log("Test attivato");
+});
+
+/* ----------------------------------
+   KEYBOARD
+---------------------------------- */
+
+window.addEventListener("keydown", e => {
+  log(
+    `KEY DOWN key=${e.key} code=${e.code} keyCode=${e.keyCode}`,
+    "keyboard"
+  );
+});
+
+window.addEventListener("keyup", e => {
+  log(
+    `KEY UP key=${e.key} code=${e.code}`,
+    "keyboard"
+  );
+});
+
+
+/* ----------------------------------
+   POINTER
+---------------------------------- */
+
+window.addEventListener("pointerdown", e => {
+  log(
+    `POINTER DOWN type=${e.pointerType} button=${e.button} buttons=${e.buttons}`,
+    "pointer"
+  );
+});
+
+window.addEventListener("pointerup", e => {
+  log(
+    `POINTER UP type=${e.pointerType} button=${e.button}`,
+    "pointer"
+  );
+});
+
+window.addEventListener("pointermove", e => {
+  if (!running) return;
+
+  if (e.pointerType !== "touch") {
+    log(
+      `POINTER MOVE type=${e.pointerType} x=${Math.round(e.clientX)} y=${Math.round(e.clientY)} buttons=${e.buttons}`,
+      "pointer"
+    );
+  }
+});
+
+
+/* ----------------------------------
+   MOUSE
+---------------------------------- */
+
+window.addEventListener("mousedown", e => {
+  log(
+    `MOUSE DOWN button=${e.button} buttons=${e.buttons}`,
+    "mouse"
+  );
+});
+
+window.addEventListener("mouseup", e => {
+  log(
+    `MOUSE UP button=${e.button}`,
+    "mouse"
+  );
+});
+
+window.addEventListener("mousemove", e => {
+  if (!running) return;
+
+  log(
+    `MOUSE MOVE x=${Math.round(e.clientX)} y=${Math.round(e.clientY)} buttons=${e.buttons}`,
+    "mouse"
+  );
+});
+
+
+/* ----------------------------------
+   GAMEPAD
+---------------------------------- */
+
+window.addEventListener("gamepadconnected", e => {
+  log(
+    `GAMEPAD CONNECTED: ${e.gamepad.id}`,
+    "gamepad"
+  );
+
+  statusEl.textContent =
+    "GAMEPAD RILEVATO\n" +
+    e.gamepad.id;
+});
+
+window.addEventListener("gamepaddisconnected", e => {
+  log(
+    `GAMEPAD DISCONNECTED: ${e.gamepad.id}`,
+    "gamepad"
+  );
+});
+
+
+function pollGamepads() {
+
+  if (running && navigator.getGamepads) {
+
+    const pads = navigator.getGamepads();
+
+    for (const pad of pads) {
+
+      if (!pad) continue;
+
+      const buttons = pad.buttons.map((b, i) =>
+        `${i}:${b.pressed ? 1 : 0}/${b.value.toFixed(2)}`
+      ).join(" ");
+
+      const axes = pad.axes.map((a, i) =>
+        `${i}:${a.toFixed(2)}`
+      ).join(" ");
+
+      const state =
+        `PAD ${pad.index}\nbuttons ${buttons}\naxes ${axes}`;
+
+      if (state !== previousGamepad) {
+        previousGamepad = state;
+        log(state, "gamepad");
+      }
+    }
+  }
+
+  requestAnimationFrame(pollGamepads);
+}
+
+pollGamepads();
+
+
+/* ----------------------------------
+   CAPABILITY INFO
+---------------------------------- */
+
+log(
+  "Gamepad API: " +
+  (navigator.getGamepads ? "YES" : "NO")
+);
+
+log(
+  "Pointer Events: " +
+  (window.PointerEvent ? "YES" : "NO")
+);
+
+</script>
+
+</body>
+</html>
